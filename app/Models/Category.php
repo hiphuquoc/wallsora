@@ -63,6 +63,18 @@ class Category extends BaseCategory {
         return $flag;
     }
 
+    // quan trọng dùng để tối ưu vòng lặp khi duyệt tìm ngôn ngữ
+    public function scopeWithDefaultSeoForLanguage($query, $language) {
+        return $query->whereHas('seos', function ($q) use ($language) {
+            $q->join('seo', 'seo.id', '=', 'relation_seo_category_info.seo_id')
+            ->where('seo.language', $language);
+        })
+        ->with(['seos' => function ($q) use ($language) {
+            $q->join('seo', 'seo.id', '=', 'relation_seo_category_info.seo_id')
+            ->where('seo.language', $language);
+        }]);
+    }
+
     public function seo() {
         return $this->hasOne(\App\Models\Seo::class, 'id', 'seo_id');
     }

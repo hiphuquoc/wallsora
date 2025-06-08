@@ -36,6 +36,18 @@ class CategoryBlog extends BaseCategory {
         return $flag;
     }
 
+    // quan trọng dùng để tối ưu vòng lặp khi duyệt tìm ngôn ngữ
+    public function scopeWithDefaultSeoForLanguage($query, $language) {
+        return $query->whereHas('seos', function ($q) use ($language) {
+            $q->join('seo', 'seo.id', '=', 'relation_seo_category_blog.seo_id')
+            ->where('seo.language', $language);
+        })
+        ->with(['seos' => function ($q) use ($language) {
+            $q->join('seo', 'seo.id', '=', 'relation_seo_category_blog.seo_id')
+            ->where('seo.language', $language);
+        }]);
+    }
+
     public function blogs(){
         return $this->hasMany(\App\Models\RelationCategoryBlogBlogInfo::class, 'category_blog_id', 'id');
     }

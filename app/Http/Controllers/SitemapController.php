@@ -60,39 +60,48 @@ class SitemapController extends Controller {
         return \App\Http\Controllers\ErrorController::error404();
     }
 
-    public static function childForLanguage($language, $name){
-        if(!empty($name)){
+    public static function childForLanguage($language, $name) {
+        if (!empty($name)) {
             $modelName      = config('tablemysql.'.$name.'.model_name');
             $modelInstance  = resolve("\App\Models\\$modelName");
-            $items          = $modelInstance::select('*')
-                                ->with('seo', 'seos')
-                                ->get();
-            if(!empty($items)&&$items->isNotEmpty()){
-                $sitemapXhtml       = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-                foreach($items as $item){
-                    foreach($item->seos as $seo){
-                        if(!empty($seo->infoSeo)&&$seo->infoSeo->language==$language){
-                            $url            = env('APP_URL').'/'.self::replaceSpecialCharactorXml($seo->infoSeo->slug_full);
-                            $urlImage       = env('APP_URL').Storage::url(config('main_'.env('APP_NAME').'.logo_main'));
-                            if(!empty($item->seo->image)) $urlImage   = Image::getUrlImageLargeByUrlImage($item->seo->image);
-                            $sitemapXhtml   .= '<url>
-                                                    <loc>'.$url.'</loc>
-                                                    <lastmod>'.date('c', strtotime($seo->infoSeo->updated_at)).'</lastmod>
-                                                    <changefreq>hourly</changefreq>
-                                                    <priority>1</priority>
-                                                    <image:image>
-                                                        <image:loc>'.$urlImage.'</image:loc>
-                                                        <image:title>'.self::replaceSpecialCharactorXml($seo->infoSeo->seo_title).'</image:title>
-                                                    </image:image>
-                                                </url>';
-                        }
+
+            $items = $modelInstance::select('*')
+                ->withDefaultSeoForLanguage($language)
+                ->get();
+
+            if ($items->isNotEmpty()) {
+                $sitemapXhtml = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+
+                foreach ($items as $item) {
+                    $relationSeo = $item->seos->first();
+                    if (!$relationSeo || !$relationSeo->infoSeo) continue;
+
+                    $seo = $relationSeo->infoSeo;
+                    $url = env('APP_URL') . '/' . self::replaceSpecialCharactorXml($seo->slug_full);
+                    $urlImage = env('APP_URL') . Storage::url(config('main_' . env('APP_NAME') . '.logo_main'));
+
+                    if (!empty($item->seo->image)) {
+                        $urlImage = Image::getUrlImageLargeByUrlImage($item->seo->image);
                     }
+
+                    $sitemapXhtml .= '
+                        <url>
+                            <loc>' . $url . '</loc>
+                            <lastmod>' . date('c', strtotime($seo->updated_at)) . '</lastmod>
+                            <changefreq>hourly</changefreq>
+                            <priority>1</priority>
+                            <image:image>
+                                <image:loc>' . $urlImage . '</image:loc>
+                                <image:title>' . self::replaceSpecialCharactorXml($seo->seo_title) . '</image:title>
+                            </image:image>
+                        </url>';
                 }
-                $sitemapXhtml       .= '</urlset>';
+
+                $sitemapXhtml .= '</urlset>';
                 return response()->make($sitemapXhtml)->header('Content-Type', 'application/xml');
             }
         }
-        /* return 404 */
+
         return \App\Http\Controllers\ErrorController::error404();
     }
 
