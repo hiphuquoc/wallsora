@@ -161,7 +161,6 @@ Route::middleware(['auth', 'role:admin', 'check.admin.subdomain'])->prefix('he-t
     /* api ai */
     Route::prefix('apiai')->group(function(){
         Route::get('/list', [ApiAIController::class, 'list'])->name('admin.apiai.list');
-        Route::get('/view', [ApiAIController::class, 'view'])->name('admin.apiai.view');
         Route::get('/changeApiActive', [ApiAIController::class, 'changeApiActive'])->name('admin.apiai.changeApiActive');
     });
     /* product */

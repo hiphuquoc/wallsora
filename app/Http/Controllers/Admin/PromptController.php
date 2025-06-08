@@ -66,16 +66,18 @@ class PromptController extends Controller {
         $item               = Prompt::select('*')
                                 ->where('id', $id)
                                 ->first();
-        $tmp                = Seo::all();
+        $tmp                = Seo::select('type')
+                                ->distinct()
+                                ->pluck('type');
         /* lấy danh sách bảng */
         $tables             = [];
         $categoryType       = [];
         /* lọc với bảng trùng của category_info */
         foreach(config('main_'.env('APP_NAME').'.category_type') as $cType) $categoryType[] = $cType['key'];
         foreach($tmp as $t){
-            if($t->type=='category_info'||!in_array($t->type, $categoryType)){
-                if(!in_array($t->type, $tables)) {
-                    $tables[] = $t->type;
+            if($t=='category_info'||!in_array($t, $categoryType)){
+                if(!in_array($t, $tables)) {
+                    $tables[] = $t;
                 }
             }
         }

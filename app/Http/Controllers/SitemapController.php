@@ -12,14 +12,10 @@ use App\Models\Seo;
 class SitemapController extends Controller {
 
     public static function main(){
-        $tmp            = Seo::all();
-        $arrayTable     = [];
-        foreach($tmp as $item){
-            if(!empty($item->type)){
-                $type   = HelperController::determinePageType($item->type);
-                if(!in_array($type, $arrayTable)) $arrayTable[] = $type;
-            }
-        }
+        $tmp            = Seo::select('type')
+                            ->distinct()
+                            ->pluck('type');
+        $arrayTable     = $tmp->toArray();
         /* viết dữ liệu */
         $sitemapXhtml       = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
         foreach($arrayTable as $item){
