@@ -15,6 +15,7 @@
         width: 100%;
         height: 100%;
         background: rgba(var(--colorBackgroundLv2), 0.5);
+        backdrop-filter: blur(8px);
     }
     &_box {
         max-width: 600px;
@@ -67,31 +68,6 @@
             padding-top: 1rem;
             margin-top: 1.5rem;
         }
-        // &:before {
-        //     position: absolute;
-        //     top: -75px;
-        //     left: -50px;
-        //     content: '';
-        //     width: 250px;
-        //     height: 250px;
-        //     background: url('/storage/images/bg-image-form-1.png') no-repeat;
-        //     background-size: 100% 100%;
-        //     transform: translateZ(-1px);
-        // }
-        // &:after {
-        //     position: absolute;
-        //     bottom: -75px;
-        //     right: -75px;
-        //     content: '';
-        //     width: 250px;
-        //     height: 250px;
-        //     background: url('/storage/images/bg-image-form-2.png') no-repeat;
-        //     background-size: 100% 100%;
-        //     transform: translateZ(-1px);
-        // }
-        // .inputWithLabelInside {
-        //     margin-top: 0.75rem !important;
-        // }
     }
     @media(max-width: 767px){
         &_box {
