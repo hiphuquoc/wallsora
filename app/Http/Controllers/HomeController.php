@@ -29,86 +29,54 @@ use App\Jobs\AutoTranslateContent;
 use App\Jobs\AutoImproveContent;
 use App\Jobs\TranslateConfigLanguage;
 use App\Jobs\CopyBoxContentToAllTagAndCategory;
-use GuzzleHttp\Client;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SendProductMail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\View;
 
-// use App\Models\RelationSeoTagInfo;
-// use App\Models\RelationSeoPageInfo;
-// use App\Models\Wallpaper;
-// use Google\Client as Google_Client;
-// use Illuminate\Support\Facades\DB;
+use App\Services\HeaderMainService;
+use App\Services\HtmlCacheService;
+use GuzzleHttp\Client;
 
-// use Illuminate\Support\Facades\Mail;
-// use App\Mail\SendProductMail;
-
-// use DOMDocument;
-// use PDO;
-// use PhpParser\Node\Stmt\Switch_;
 
 class HomeController extends Controller {
-    public static function home(Request $request, $language = 'vi') {
-        // 1. Ngôn ngữ và cấu hình
+
+    public static function home(HeaderMainService $headerMainService, HtmlCacheService $htmlCacheService, Request $request, $language = 'vi')
+    {
         SettingController::settingLanguage($language);
 
-        $appName        = env('APP_NAME');
+        $appName = env('APP_NAME');
+        $cacheKey = RoutingController::buildNameCache("{$language}home");
 
-        $useCache       = env('APP_CACHE_HTML', true);
-        $redisTtl       = config('app.cache_redis_time', 86400);     // Redis: 1 ngày
-        $fileTtl        = config('app.cache_html_time', 2592000);    // GCS: 30 ngày
-
-        // 2. Tạo key và đường dẫn cache
-        $cacheKey     = RoutingController::buildNameCache("{$language}home");
-        $cacheName    = $cacheKey . '.' . config("main_{$appName}.cache.extension");
-        $cacheFolder  = config("main_{$appName}.cache.folderSave");
-        $cachePath    = $cacheFolder . $cacheName;
-        $cdnDomain    = config("main_{$appName}.google_cloud_storage.cdn_domain");
-
-        $disk         = Storage::disk(config("main_{$appName}.cache.disk"));
-        $htmlContent  = null;
-
-        // // 3. Thử lấy từ Redis
-        // if ($useCache && Cache::has($cacheKey)) {
-        //     $htmlContent = Cache::get($cacheKey);
-        // }
-
-        // 4. Nếu không có Redis → thử từ GCS (qua CDN)
-        if ($useCache && !$htmlContent && $disk->exists($cachePath)) {
-            $lastModified = $disk->lastModified($cachePath);
-            if ((time() - $lastModified) < $fileTtl) {
-                $htmlContent = Storage::get($cachePath);
-                if ($htmlContent) {
-                    Cache::put($cacheKey, $htmlContent, $redisTtl);
-                }
-            }
-        }
-
-        // 5. Nếu không có cache → Render
-        if (!$htmlContent) {
+        $htmlContent = $htmlCacheService->getOrRender($cacheKey, function () use ($language, $headerMainService, $appName) {
+            // lấy thông tin trang chủ
             $item = Page::select('*')
                 ->whereHas('seos.infoSeo', function ($query) use ($language) {
                     $query->where('slug', $language);
                 })
                 ->with('seo', 'seos.infoSeo', 'type')
                 ->first();
-
             $itemSeo = self::extractSeoForLanguage($item, $language);
 
+            // lấy html header main menu
+            $menuHtml = $headerMainService->getMenuHtml();
+
+            // lấy danh sách danh mục
             $categories = Category::select('*')
                 ->where('flag_show', 1)
                 ->get();
 
-            $htmlContent = view('wallpaper.home.index', compact('item', 'itemSeo', 'language', 'categories'))->render();
-
-            // Lưu cache lại nếu bật
-            if ($useCache) {
-                // Cache::put($cacheKey, $htmlContent, $redisTtl);
-                $disk->put($cachePath, $htmlContent);
-            }
-        }
+            // render giao diện
+            return View::make('wallpaper.home.index', compact(
+                'item',
+                'itemSeo',
+                'language',
+                'menuHtml',
+                'categories',
+            ))->render();
+        });
 
         echo $htmlContent;
     }

@@ -4,7 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 
-class CacheService {
+class RedisCacheService {
     /**
      * Lấy dữ liệu từ cache hoặc truy vấn từ database nếu không có trong cache.
      *

@@ -21,9 +21,9 @@
     <div id="js_settingCollapsedMenu" class="layoutHeaderSide">
         <!-- giữ chỗ thanh bên để chống nhảy trang -->
         <div class="layoutHeaderSide_placeholder"></div>
-        <!-- thanh bên -->
+        <!-- thanh bên ===== truyền vào service để tạo cacheHtml -->
         <div id="js_toggleMenuMobile" class="layoutHeaderSide_header container">
-            @include('wallpaper.snippets.headerSide')
+            {!! $menuHtml ?? null !!}
         </div>
         <div class="backgroundBlurMobileMenu" onClick="toggleMenuMobile('js_toggleMenuMobile');"></div>
         <!-- nội dung chính -->

@@ -20,7 +20,7 @@ use App\Models\Page;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use App\Services\BuildInsertUpdateModel;
-use App\Services\CacheService;
+use App\Services\RedisCacheService;
 
 class AjaxController extends Controller {
 
@@ -472,7 +472,7 @@ class AjaxController extends Controller {
         };
 
         // Lấy dữ liệu từ cache hoặc truy vấn từ database
-        $infoProduct = CacheService::getOrSetCache($cacheKey, $queryCallback);
+        $infoProduct = RedisCacheService::getOrSetCache($cacheKey, $queryCallback);
 
         $result = '';
         $priceAllMobile = '';
@@ -510,7 +510,7 @@ class AjaxController extends Controller {
         };
 
         // Lấy dữ liệu từ cache hoặc truy vấn từ database
-        $infoProduct = CacheService::getOrSetCache($cacheKey, $queryCallback);
+        $infoProduct = RedisCacheService::getOrSetCache($cacheKey, $queryCallback);
 
         // tính giá
         $priceAllMobile = \App\Helpers\Number::getPriceOriginByCountry($infoProduct->price);

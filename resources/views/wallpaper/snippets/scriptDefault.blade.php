@@ -57,6 +57,27 @@
         settingGPSVisitor();
         settingTimezoneVisitor();
 
+        // headerSide
+        var Url = decodeURIComponent(document.URL);
+        $('.headerSide .filterLinkSelected a').each(function(){
+            const regex = new RegExp("^" + $(this).attr('href'));
+            if(regex.test(Url)) {
+                /* mở thẻ cha chứa phần tử trang hiện tại */
+                $(this).closest('ul').addClass('active');
+                /* mở luôn thẻ chứa các phần tử con của trang hiện tại */
+                $(this).next('ul').addClass('active');
+                $(this).closest('ul').children().each(function(){
+                    $(this).removeClass('selected');
+                })
+                
+                $(this).closest('li').addClass('selected');
+                /* thay icon */
+                $(this).closest('ul').closest('li').find('.actionMenu').addClass('isOpen');
+            }
+        });
+        /* tải status collapsed */
+        getStatusCollapse();
+
     });
 
     function settingGPSVisitor() {
@@ -926,5 +947,81 @@
         } else {
             body.css('overflow', 'unset'); // Remove overflow style when element is hidden
         }
+    }
+
+    // xử lý của headerSide (vì menu truyền vào service nên script chuyển ra đây)
+    function showHideListMenuMobile(element, idMenu){
+        let elementMenu     = $('#'+idMenu);
+        let flag            = elementMenu.height();
+        if(flag<=0){
+            elementMenu.addClass('active');
+        }else {
+            elementMenu.removeClass('active');
+        }
+        /* toggle icon */
+        const elementIcon = $(element).find('.actionMenu');
+        if ($(elementIcon).hasClass('isOpen')) {
+            $(elementIcon).removeClass('isOpen');
+        } else {
+            $(elementIcon).addClass('isOpen');
+        }
+    }
+
+    function settingCollapsedMenu(){
+        const element       = $('#js_settingCollapsedMenu');
+        element.find('.layoutHeaderSide_header').css('width', '4.25rem');
+        /* xác định hành động */
+        var action          = 'on';
+        if(element.hasClass('collapsed'))  action = 'off';
+        /* thiết lập */
+        let dataForm        = {};
+        dataForm.action     = action;            
+        const queryString   = new URLSearchParams(dataForm).toString();
+        fetch('/settingCollapsedMenu?' + queryString, {
+            method  : 'GET',
+            mode    : 'cors',
+        })
+        .then(response => {
+            if (!response.ok){
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(response => {
+            if(action=='on'){
+                element.addClass('collapsed');
+            }else {
+                element.removeClass('collapsed');
+            }
+            setTimeout(() => {
+                element.find('.layoutHeaderSide_header').attr('style', '');
+            }, 200);
+        })
+        .catch(error => {
+            console.error("Fetch request failed:", error);
+        });
+    }
+
+    function getStatusCollapse() {
+        fetch('/getStatusCollapse', {
+            method: 'GET',
+            mode: 'cors',
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status == 'on') {
+                $('#js_settingCollapsedMenu').addClass('collapsed');
+            } else {
+                $('#js_settingCollapsedMenu').removeClass('collapsed');
+            }
+        })
+        .catch(error => {
+            console.error("Fetch request failed:", error);
+        });
     }
 </script>
