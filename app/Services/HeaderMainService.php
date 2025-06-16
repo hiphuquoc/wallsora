@@ -8,25 +8,22 @@ use Illuminate\Support\Facades\View;
 class HeaderMainService
 {
     protected $menuRepository;
-    protected $language;
-    protected $cacheKey;
     protected $htmlCacheService;
 
     public function __construct(MenuRepository $menuRepository, HtmlCacheService $htmlCacheService)
     {
         $this->menuRepository = $menuRepository;
         $this->htmlCacheService = $htmlCacheService;
-        $this->language = \App\Http\Controllers\SettingController::getLanguage();
-        $this->cacheKey = 'html_header_side_' . $this->language;
     }
 
     /**
      * Lấy menu HTML từ cache hoặc render mới nếu chưa có
      */
-    public function getMenuHtml()
+    public function getMenuHtml($language)
     {
-        return $this->htmlCacheService->getOrRender($this->cacheKey, function () {
-            $menuData = $this->menuRepository->getMenuData($this->language);
+        $cacheKey   = 'html_header_side_' . $language;
+        return $this->htmlCacheService->getOrRender($cacheKey, function () use($language) {
+            $menuData = $this->menuRepository->getMenuData($language);
             return View::make('wallpaper.snippets.headerSide', $menuData)->render();
         });
     }
@@ -34,8 +31,8 @@ class HeaderMainService
     /**
      * Xóa cache của menu
      */
-    public function clearCache()
+    public function clearCache($cacheKey)
     {
-        $this->htmlCacheService->clear($this->cacheKey);
+        $this->htmlCacheService->clear($cacheKey);
     }
 }

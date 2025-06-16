@@ -169,7 +169,7 @@ class RoutingController extends Controller{
         $idSeo = $itemSeo->id;
 
         // lấy html header main menu
-        $menuHtml = app(HeaderMainService::class)->getMenuHtml();
+        $menuHtml = app(HeaderMainService::class)->getMenuHtml($language);
     
         // Lấy dữ liệu chính
         $item = $modelInstance::select('*')

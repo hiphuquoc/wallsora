@@ -61,7 +61,7 @@ class HomeController extends Controller {
             $itemSeo = self::extractSeoForLanguage($item, $language);
 
             // lấy html header main menu
-            $menuHtml = $headerMainService->getMenuHtml();
+            $menuHtml = $headerMainService->getMenuHtml($language);
 
             // lấy danh sách danh mục
             $categories = Category::select('*')
