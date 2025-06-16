@@ -79,7 +79,7 @@ class HomeController extends Controller {
         if ($useCache && !$htmlContent && $disk->exists($cachePath)) {
             $lastModified = $disk->lastModified($cachePath);
             if ((time() - $lastModified) < $fileTtl) {
-                $htmlContent = @file_get_contents($cdnDomain . $cachePath);
+                $htmlContent = Storage::get($cachePath);
                 if ($htmlContent) {
                     Cache::put($cacheKey, $htmlContent, $redisTtl);
                 }
