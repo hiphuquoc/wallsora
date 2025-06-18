@@ -67,11 +67,11 @@ class SitemapController extends Controller {
 
             $items = $modelInstance::select('*')
                 ->withDefaultSeoForLanguage($language)
+                ->orderBy('id', 'DESC')
                 ->get();
 
             if ($items->isNotEmpty()) {
                 $sitemapXhtml = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-
                 foreach ($items as $item) {
                     $relationSeo = $item->seos->first();
                     if (!$relationSeo || !$relationSeo->infoSeo) continue;
@@ -91,12 +91,13 @@ class SitemapController extends Controller {
                             <changefreq>hourly</changefreq>
                             <priority>1</priority>
                             <image:image>
-                                <image:loc>' . $urlImage . '</image:loc>
+                                <image:loc>' . self::replaceSpecialCharactorXml($urlImage) . '</image:loc>
                                 <image:title>' . self::replaceSpecialCharactorXml($seo->seo_title) . '</image:title>
                             </image:image>
                         </url>';
-                }
 
+                        $test[] = $url;
+                }
                 $sitemapXhtml .= '</urlset>';
                 return response()->make($sitemapXhtml)->header('Content-Type', 'application/xml');
             }

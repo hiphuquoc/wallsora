@@ -137,12 +137,22 @@ class CategoryMoneyController extends Controller {
         // Khởi tạo query
         $query = Product::select('product_info.*')
             ->join('seo', 'seo.id', '=', 'product_info.seo_id')
-            ->whereHas('prices.wallpapers', function () {})
-            ->whereHas('seos.infoSeo', function ($subQuery) use ($language, $keySearch) {
-                $subQuery->where('language', $language)
-                    ->where('title', 'like', '%' . $keySearch . '%');
-            })
-            ->when(!empty($filters), function ($subQuery) use ($filters) {
+            ->whereHas('prices.wallpapers', function () {});
+        // === THAY ĐỔI TẠI ĐÂY: DÙNG MEILISEARCH ĐỂ LỌC THEO TITLE ===
+        if ($keySearch) {
+            $ids = Product::search($keySearch)
+                ->get()
+                ->pluck('id')
+                ->toArray();
+
+            if (empty($ids)) {
+                $query->whereRaw('0=1'); // Không có kết quả nào
+            } else {
+                $query->whereIn('product_info.id', $ids);
+            }
+        }
+        // =========================================================
+        $query->when(!empty($filters), function ($subQuery) use ($filters) {
                 foreach ($filters as $filter) {
                     $subQuery->whereHas('categories.infoCategory', function ($subQueryLv2) use ($filter) {
                         $subQueryLv2->where('id', $filter);
