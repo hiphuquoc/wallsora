@@ -1,123 +1,138 @@
 <?php
 
 namespace App\Http\Controllers;
-// use Illuminate\Http\Request;
-// use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+
 use App\Helpers\Image;
-
-use App\Http\Controllers\Admin\HelperController;
 use App\Models\Seo;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Response;
 
-class SitemapController extends Controller {
+class SitemapController extends Controller
+{
+    public static function main()
+    {
+        $types = Seo::select('type')->distinct()->pluck('type')->toArray();
 
-    public static function main(){
-        $tmp            = Seo::select('type')
-                            ->distinct()
-                            ->pluck('type');
-        $arrayTable     = $tmp->toArray();
-        /* viết dữ liệu */
-        $sitemapXhtml       = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-        foreach($arrayTable as $item){
-            $url            = env('APP_URL').'/sitemap/'.$item.'.xml';
-            $mk             = time() - rand(3600, 259200);
-            $sitemapXhtml   .= '<url>
-                                    <loc>'.$url.'</loc>
-                                    <lastmod>'.date('c', $mk).'</lastmod>
-                                    <changefreq>weekly</changefreq>
-                                    <priority>0.8</priority>
-                                </url>';
-        }
-        $sitemapXhtml       .= '</urlset>';
-        /* response */
-        return response()->make($sitemapXhtml)->header('Content-Type', 'application/xml');
-    }
-
-    public static function child($name){
-        if(!empty($name)){
-            /* kiểm tra xem có trong loại không */
-            $name               = HelperController::determinePageType($name);
-            /* viết dữ liệu */
-            $sitemapXhtml       = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-            foreach(config('language') as $language){
-                if(!empty($language['key'])){
-                    $language       = $language['key'];
-                    $url            = env('APP_URL').'/sitemap/'.$language.'/'.$name.'.xml';
-                    $mk             = time() - rand(3600, 84600);
-                    $sitemapXhtml   .= '<url>
-                                            <loc>'.$url.'</loc>
-                                            <lastmod>'.date('c', $mk).'</lastmod>
-                                            <changefreq>weekly</changefreq>
-                                            <priority>0.8</priority>
-                                        </url>';
-                }
+        $xml = self::generateUrlset(function () use ($types) {
+            $entries = '';
+            foreach ($types as $type) {
+                $lastMod = now()->subSeconds(rand(3600, 259200))->toIso8601String();
+                $url = env('APP_URL') . "/sitemap/{$type}.xml";
+                $entries .= self::generateUrlEntry($url, $lastMod, 'weekly', '0.8');
             }
-            $sitemapXhtml       .= '</urlset>';
-            /* response */
-            return response()->make($sitemapXhtml)->header('Content-Type', 'application/xml');
-        }
-        /* return 404 */
-        return \App\Http\Controllers\ErrorController::error404();
+            return $entries;
+        });
+
+        return self::xmlResponse($xml);
     }
 
-    public static function childForLanguage($language, $name) {
-        if (!empty($name)) {
-            $modelName      = config('tablemysql.'.$name.'.model_name');
-            $modelInstance  = resolve("\App\Models\\$modelName");
+    public static function child($name)
+    {
+        if (empty($name)) {
+            return \App\Http\Controllers\ErrorController::error404();
+        }
 
-            $items = $modelInstance::select('*')
-                ->withDefaultSeoForLanguage($language)
-                ->orderBy('id', 'DESC')
-                ->get();
+        $name = \App\Http\Controllers\Admin\HelperController::determinePageType($name);
+        $languages = array_column(config('language'), 'key');
 
-            if ($items->isNotEmpty()) {
-                $sitemapXhtml = '<urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-                foreach ($items as $item) {
-                    $relationSeo = $item->seos->first();
-                    if (!$relationSeo || !$relationSeo->infoSeo) continue;
-
-                    $seo = $relationSeo->infoSeo;
-                    $url = env('APP_URL') . '/' . self::replaceSpecialCharactorXml($seo->slug_full);
-                    $urlImage = env('APP_URL') . Storage::url(config('main_' . env('APP_NAME') . '.logo_main'));
-
-                    if (!empty($item->seo->image)) {
-                        $urlImage = Image::getUrlImageLargeByUrlImage($item->seo->image);
-                    }
-
-                    $sitemapXhtml .= '
-                        <url>
-                            <loc>' . $url . '</loc>
-                            <lastmod>' . date('c', strtotime($seo->updated_at)) . '</lastmod>
-                            <changefreq>hourly</changefreq>
-                            <priority>1</priority>
-                            <image:image>
-                                <image:loc>' . self::replaceSpecialCharactorXml($urlImage) . '</image:loc>
-                                <image:title>' . self::replaceSpecialCharactorXml($seo->seo_title) . '</image:title>
-                            </image:image>
-                        </url>';
-
-                        $test[] = $url;
-                }
-                $sitemapXhtml .= '</urlset>';
-                return response()->make($sitemapXhtml)->header('Content-Type', 'application/xml');
+        $xml = self::generateUrlset(function () use ($languages, $name) {
+            $entries = '';
+            foreach ($languages as $lang) {
+                if (!$lang) continue;
+                $lastMod = now()->subSeconds(rand(3600, 84600))->toIso8601String();
+                $url = env('APP_URL') . "/sitemap/{$lang}/{$name}.xml";
+                $entries .= self::generateUrlEntry($url, $lastMod, 'weekly', '0.8');
             }
-        }
+            return $entries;
+        });
 
-        return \App\Http\Controllers\ErrorController::error404();
+        return self::xmlResponse($xml);
     }
 
-    public static function replaceSpecialCharactorXml($str) {
-        if (!empty($str)) {
-            $dataEscape = [
-                '&' => '&amp;', // Phải thay thế & đầu tiên để tránh các lỗi khác
-                '<' => '&lt;',
-                '>' => '&gt;',
-                '"' => '&quot;',
-                "'" => '&apos;'
-            ];
-            // Sử dụng str_replace để thay thế nhanh và tránh lỗi từ regex
-            return str_replace(array_keys($dataEscape), array_values($dataEscape), $str);
+    public static function childForLanguage($language, $name)
+    {
+        if (empty($name)) {
+            return \App\Http\Controllers\ErrorController::error404();
         }
-        return $str; // Trả về chuỗi nếu nó rỗng
+
+        $modelName = config("tablemysql.{$name}.model_name");
+        if (!$modelName || !class_exists($modelClass = "\App\Models\\{$modelName}")) {
+            return \App\Http\Controllers\ErrorController::error404();
+        }
+
+        $items = resolve($modelClass)
+            ->select('*')
+            ->withDefaultSeoForLanguage($language)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return \App\Http\Controllers\ErrorController::error404();
+        }
+
+        $xml = self::generateUrlset(function () use ($items) {
+            $entries = '';
+            foreach ($items as $item) {
+                $seo = optional($item->seos->first())->infoSeo;
+                if (!$seo) continue;
+
+                $url = env('APP_URL') . '/' . self::escapeXml($seo->slug_full);
+                $imageUrl = !empty($item->seo->image)
+                    ? Image::getUrlImageLargeByUrlImage($item->seo->image)
+                    : env('APP_URL') . Storage::url(config('main_' . env('APP_NAME') . '.logo_main'));
+
+                $entries .= "
+                    <url>
+                        <loc>{$url}</loc>
+                        <lastmod>" . self::escapeXml(date('c', strtotime($seo->updated_at))) . "</lastmod>
+                        <changefreq>hourly</changefreq>
+                        <priority>1</priority>
+                        <image:image>
+                            <image:loc>" . self::escapeXml($imageUrl) . "</image:loc>
+                            <image:title>" . self::escapeXml($seo->seo_title) . "</image:title>
+                        </image:image>
+                    </url>";
+            }
+            return $entries;
+        });
+
+        return self::xmlResponse($xml);
+    }
+
+    private static function generateUrlset(callable $generateEntries): string
+    {
+        $entries = $generateEntries();
+        return <<<XML
+            <urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+                    xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                {$entries}
+            </urlset>
+            XML;
+    }
+
+    private static function generateUrlEntry(string $loc, string $lastmod, string $changefreq, string $priority): string
+    {
+        return <<<XML
+        <url>
+            <loc>{$loc}</loc>
+            <lastmod>{$lastmod}</lastmod>
+            <changefreq>{$changefreq}</changefreq>
+            <priority>{$priority}</priority>
+        </url>
+        XML;
+    }
+
+    private static function escapeXml(string $value): string
+    {
+        return str_replace(
+            ['&', '<', '>', '"', "'"],
+            ['&amp;', '&lt;', '&gt;', '&quot;', '&apos;'],
+            $value
+        );
+    }
+
+    private static function xmlResponse(string $xml)
+    {
+        return response($xml, 200)->header('Content-Type', 'application/xml');
     }
 }
