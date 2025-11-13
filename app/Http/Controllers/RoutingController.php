@@ -205,7 +205,6 @@ class RoutingController extends Controller{
                 return $this->handleBlogInfo($item, $itemSeo, $language, $sharedData);
     
             default:
-                dd($item);
                 foreach (config('main_' . env('APP_NAME') . '.category_type') as $type) {
                     if ($itemSeo->type === $type['key']) {
                         return $this->handleCategoryType($item, $itemSeo, $language, $sharedData);
