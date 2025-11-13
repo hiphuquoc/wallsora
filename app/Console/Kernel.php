@@ -15,7 +15,10 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Chạy sitemap mỗi ngày lúc 02:00 sáng
+        $schedule->command('sitemap:generate')
+            ->dailyAt('02:00')
+            ->withoutOverlapping();
     }
 
     /**
