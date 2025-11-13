@@ -15,6 +15,7 @@
 
 .bottom {
     position: fixed;
+    pointer-events: none;
     padding: 0.25rem;
     z-index: 10;
     display: flex;
@@ -22,6 +23,9 @@
     justify-content: flex-end;
     bottom: 0;
     right: 0;
+    > * {
+        pointer-events: auto;
+    }
     &:dir(rtl), [dir="rtl"] & {
         right: unset;
         left: 0;

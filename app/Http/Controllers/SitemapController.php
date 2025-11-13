@@ -2,137 +2,212 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\Image;
-use App\Models\Seo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Response;
+use App\Helpers\Image;
+use Illuminate\Support\Facades\Cache;
 
 class SitemapController extends Controller
 {
-    public static function main()
+    const MAX_ITEMS = 10000;
+
+    public static function serve($filePath)
     {
-        $types = Seo::select('type')->distinct()->pluck('type')->toArray();
+        $path = 'sitemaps/' . ltrim($filePath, '/');
+        $disk = Storage::disk('local');
 
-        $xml = self::generateUrlset(function () use ($types) {
-            $entries = '';
-            foreach ($types as $type) {
-                $lastMod = now()->subSeconds(rand(3600, 259200))->toIso8601String();
-                $url = env('APP_URL') . "/sitemap/{$type}.xml";
-                $entries .= self::generateUrlEntry($url, $lastMod, 'weekly', '0.8');
+        if (!$disk->exists($path)) {
+            return abort(404);
+        }
+
+        $content = $disk->get($path);
+        $response = response($content, 200, [
+            'Content-Type' => 'application/xml',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+
+        if (request()->header('Accept-Encoding') && str_contains(request()->header('Accept-Encoding'), 'gzip')) {
+            $gzipped = gzencode($content, 6);
+            if ($gzipped !== false) {
+                $response->setContent($gzipped);
+                $response->header('Content-Encoding', 'gzip');
+                $response->header('Content-Length', strlen($gzipped));
             }
-            return $entries;
-        });
+        }
 
-        return self::xmlResponse($xml);
+        return $response;
     }
 
-    public static function child($name)
+    public static function generateMainContent()
     {
-        if (empty($name)) {
-            return \App\Http\Controllers\ErrorController::error404();
-        }
+        $types = array_filter(config('tablemysql'), fn($t) => !empty($t['sitemap']));
+        $now = now()->toIso8601String();
+        $entries = array_map(fn($key) => self::sitemapEntry(
+            env('APP_URL') . "/sitemap/{$key}.xml", $now
+        ), array_keys($types));
 
-        $name = \App\Http\Controllers\Admin\HelperController::determinePageType($name);
-        $languages = array_column(config('language'), 'key');
-
-        $xml = self::generateUrlset(function () use ($languages, $name) {
-            $entries = '';
-            foreach ($languages as $lang) {
-                if (!$lang) continue;
-                $lastMod = now()->subSeconds(rand(3600, 84600))->toIso8601String();
-                $url = env('APP_URL') . "/sitemap/{$lang}/{$name}.xml";
-                $entries .= self::generateUrlEntry($url, $lastMod, 'weekly', '0.8');
-            }
-            return $entries;
-        });
-
-        return self::xmlResponse($xml);
+        return self::sitemapIndexXml($entries);
     }
 
-    public static function childForLanguage($language, $name)
+    public static function generateChildContent($type)
     {
-        if (empty($name)) {
-            return \App\Http\Controllers\ErrorController::error404();
+        $now = now()->toIso8601String();
+        $entries = array_map(fn($lang) => self::sitemapEntry(
+            env('APP_URL') . "/sitemap/{$lang['key']}/{$type}.xml", $now
+        ), array_filter(config('language'), fn($l) => !empty($l['key'])));
+
+        return self::sitemapIndexXml($entries);
+    }
+
+    public static function generateChildForLanguageContent($language, $type, $totalPages, $totalIndexPages)
+    {
+        $now = now()->toIso8601String();
+        $entries = [];
+
+        if ($totalIndexPages > 1) {
+            for ($i = 1; $i <= $totalIndexPages; $i++) {
+                $entries[] = self::sitemapEntry(
+                    env('APP_URL') . "/sitemap/{$language}/{$type}-index-{$i}.xml", $now
+                );
+            }
+        } else {
+            for ($i = 1; $i <= $totalPages; $i++) {
+                $entries[] = self::sitemapEntry(
+                    env('APP_URL') . "/sitemap/{$language}/{$type}-{$i}.xml", $now
+                );
+            }
         }
 
-        $modelName = config("tablemysql.{$name}.model_name");
-        if (!$modelName || !class_exists($modelClass = "\App\Models\\{$modelName}")) {
-            return \App\Http\Controllers\ErrorController::error404();
+        return self::sitemapIndexXml($entries);
+    }
+
+    public static function generateChildIndexPageContent($language, $type, $indexPage)
+    {
+        $config = config("tablemysql.{$type}");
+        if (!$config) return '';
+
+        $total = Cache::get("sitemap_count_{$type}_{$language}", 0);
+        $totalPages = ceil($total / self::MAX_ITEMS);
+
+        $start = ($indexPage - 1) * self::MAX_ITEMS + 1;
+        $end = min($totalPages, $indexPage * self::MAX_ITEMS);
+        if ($start > $end) return '';
+
+        $now = now()->toIso8601String();
+        $entries = [];
+
+        for ($i = $start; $i <= $end; $i++) {
+            $entries[] = self::sitemapEntry(
+                env('APP_URL') . "/sitemap/{$language}/{$type}-{$i}.xml", $now
+            );
         }
 
-        $items = resolve($modelClass)
-            ->select('*')
-            ->withDefaultSeoForLanguage($language)
-            ->orderByDesc('id')
+        return self::sitemapIndexXml($entries);
+    }
+
+    public static function generateChildForLanguagePageContent($language, $type, $page)
+    {
+        $page = max(1, (int) $page);
+        $config = config("tablemysql.{$type}");
+        if (!$config || empty($config['sitemap'])) return '';
+
+        $table = $config['table'];
+        $seoRelation = $config['seo_relation'];
+        $perPage = self::MAX_ITEMS;
+        $offset = ($page - 1) * $perPage;
+
+        // Single optimized query with offset/limit
+        $query = DB::table("{$table} as c")
+            ->join("{$seoRelation} as r", 'c.id', '=', "r.{$type}_id")
+            ->join('seo as s', 's.id', '=', 'r.seo_id')
+            ->where('s.language', $language)
+            ->orderByDesc('c.id');
+
+        $items = $query->offset($offset)
+            ->limit($perPage)
+            ->select(['c.id', 's.slug_full', 's.updated_at', 's.seo_title', 's.image'])
             ->get();
 
-        if ($items->isEmpty()) {
-            return \App\Http\Controllers\ErrorController::error404();
+        if ($items->isEmpty()) return '';
+
+        $entries = [];
+        foreach ($items as $item) {
+            $url = env('APP_URL') . '/' . ltrim($item->slug_full, '/');
+            $lastmod = date('c', strtotime($item->updated_at));
+            $title = $item->seo_title ?? '';
+            $image = !empty($item->image)
+                ? Image::getUrlImageLargeByUrlImage($item->image)
+                : config('image.default');
+
+            $entries[] = self::urlEntry($url, $lastmod, $title, $image);
         }
 
-        $xml = self::generateUrlset(function () use ($items) {
-            $entries = '';
-            foreach ($items as $item) {
-                $seo = optional($item->seos->first())->infoSeo;
-                if (!$seo) continue;
-
-                $url = env('APP_URL') . '/' . self::escapeXml($seo->slug_full);
-                $imageUrl = !empty($item->seo->image)
-                    ? Image::getUrlImageLargeByUrlImage($item->seo->image)
-                    : env('APP_URL') . Storage::url(config('main_' . env('APP_NAME') . '.logo_main'));
-
-                $entries .= "
-                    <url>
-                        <loc>{$url}</loc>
-                        <lastmod>" . self::escapeXml(date('c', strtotime($seo->updated_at))) . "</lastmod>
-                        <changefreq>hourly</changefreq>
-                        <priority>1</priority>
-                        <image:image>
-                            <image:loc>" . self::escapeXml($imageUrl) . "</image:loc>
-                            <image:title>" . self::escapeXml($seo->seo_title) . "</image:title>
-                        </image:image>
-                    </url>";
-            }
-            return $entries;
-        });
-
-        return self::xmlResponse($xml);
+        return $entries ? self::urlsetXml($entries) : '';
     }
 
-    private static function generateUrlset(callable $generateEntries): string
+    public static function sitemapEntry($loc, $lastmod)
     {
-        $entries = $generateEntries();
+        return "<sitemap><loc>" . e($loc) . "</loc><lastmod>{$lastmod}</lastmod></sitemap>";
+    }
+
+    public static function urlEntry($loc, $lastmod, $title, $image)
+    {
+        $title = e($title);
+        $image = e($image);
         return <<<XML
-            <urlset xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-                    xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-                {$entries}
-            </urlset>
+            <url>
+                <loc>{$loc}</loc>
+                <lastmod>{$lastmod}</lastmod>
+                <changefreq>weekly</changefreq>
+                <priority>1.0</priority>
+                <image:image>
+                    <image:loc>{$image}</image:loc>
+                    <image:title>{$title}</image:title>
+                </image:image>
+            </url>
             XML;
     }
 
-    private static function generateUrlEntry(string $loc, string $lastmod, string $changefreq, string $priority): string
+    public static function sitemapIndexXml($entries)
     {
-        return <<<XML
-        <url>
-            <loc>{$loc}</loc>
-            <lastmod>{$lastmod}</lastmod>
-            <changefreq>{$changefreq}</changefreq>
-            <priority>{$priority}</priority>
-        </url>
-        XML;
+        return '<?xml version="1.0" encoding="UTF-8"?>
+            <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            ' . implode("\n", $entries) . '
+            </sitemapindex>';
     }
 
-    private static function escapeXml(string $value): string
+    public static function urlsetXml($entries)
     {
-        return str_replace(
-            ['&', '<', '>', '"', "'"],
-            ['&amp;', '&lt;', '&gt;', '&quot;', '&apos;'],
-            $value
+        return '<?xml version="1.0" encoding="UTF-8"?>
+            <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+                    xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+            ' . implode("\n", $entries) . '
+            </urlset>';
+    }
+
+    public static function fixPermissions($path = null)
+    {
+        // Nếu không truyền $path, mặc định dùng app/sitemaps
+        $path = $path ?: app_path('sitemaps');
+
+        if (!is_dir($path)) return;
+
+        // Duyệt tất cả thư mục con và file
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
         );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @chmod($item->getPathname(), 0777); // quyền thư mục
+            } else {
+                @chmod($item->getPathname(), 0666); // quyền file
+            }
+        }
+
+        // Đặt quyền cho thư mục gốc
+        @chmod($path, 0777);
     }
 
-    private static function xmlResponse(string $xml)
-    {
-        return response($xml, 200)->header('Content-Type', 'application/xml');
-    }
 }

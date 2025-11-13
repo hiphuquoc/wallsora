@@ -68,6 +68,25 @@ use Illuminate\Support\Facades\Redis;
 // Route::get('/call-jobs', function () {
 //     include base_path('callMultiJobs.php');
 // });
+// === SITEMAP ROUTES - ĐẶT TRÊN CÙNG, TRƯỚC MỌI ROUTE KHÁC ===
+Route::get('sitemap.xml', fn() => SitemapController::serve('sitemap.xml'))
+    ->name('sitemap.main');
+
+Route::get('sitemap/{type}.xml', fn($type) => SitemapController::serve("sitemap/{$type}.xml"))
+    ->where('type', '[a-zA-Z0-9_-]+')
+    ->name('sitemap.child');
+
+Route::get('sitemap/{language}/{type}.xml', function ($language, $type) {
+    if (preg_match('/^(.+)-(\d+)(\.xml)?$/', $type, $m)) {
+        $file = "sitemap/{$language}/{$m[1]}-{$m[2]}.xml";
+    } else {
+        $file = "sitemap/{$language}/{$type}.xml";
+    }
+    return SitemapController::serve($file);
+})
+    ->where('language', '[a-z]{2}')
+    ->where('type', '[a-zA-Z0-9_-]+(\-\d+)?')
+    ->name('sitemap.childForLanguage');
 /* thiết lập giao diện */
 Route::get('/setViewMode', [AjaxController::class, 'setViewMode'])->name('main.setViewMode');
 /* login */
@@ -332,10 +351,6 @@ Route::middleware(['check.domain'])->group(function () {
     Route::get('/viewConfirm', [OrderPublic::class, 'viewConfirm'])->name('main.viewConfirm');
     /* category blog */
     Route::get('/showSortBoxInCategoryTag', [CategoryBlogPublic::class, 'showSortBoxInCategoryTag'])->name('main.showSortBoxInCategoryTag');
-    /* sitemap */
-    Route::get('sitemap.xml', [SitemapController::class, 'main'])->name('sitemap.main');
-    Route::get('sitemap/{type}.xml', [SitemapController::class, 'child'])->name('sitemap.child');
-    Route::get('sitemap/{language}/{type}.xml', [SitemapController::class, 'childForLanguage'])->name('sitemap.childForLanguage');
     /* AJAX */
     Route::get('/buildTocContentMain', [AjaxController::class, 'buildTocContentMain'])->name('main.buildTocContentMain');
     Route::get('/loadLoading', [AjaxController::class, 'loadLoading'])->name('ajax.loadLoading');
