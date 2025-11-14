@@ -116,7 +116,6 @@ class SitemapController extends Controller
         $perPage = self::MAX_ITEMS;
         $offset = ($page - 1) * $perPage;
 
-        // Single optimized query with offset/limit
         $query = DB::table("{$table} as c")
             ->join("{$seoRelation} as r", 'c.id', '=', "r.{$type}_id")
             ->join('seo as s', 's.id', '=', 'r.seo_id')
@@ -147,52 +146,62 @@ class SitemapController extends Controller
 
     public static function sitemapEntry($loc, $lastmod)
     {
-        return "<sitemap><loc>" . e($loc) . "</loc><lastmod>{$lastmod}</lastmod></sitemap>";
+        $loc = self::xmlEscape($loc);
+        return "<sitemap><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod></sitemap>";
     }
 
     public static function urlEntry($loc, $lastmod, $title, $image)
     {
-        $title = e($title);
-        $image = e($image);
+        $loc = self::xmlEscape($loc);
+        $title = self::xmlEscape($title);
+        $image = self::xmlEscape($image);
+
         return <<<XML
-            <url>
-                <loc>{$loc}</loc>
-                <lastmod>{$lastmod}</lastmod>
-                <changefreq>weekly</changefreq>
-                <priority>1.0</priority>
-                <image:image>
-                    <image:loc>{$image}</image:loc>
-                    <image:title>{$title}</image:title>
-                </image:image>
-            </url>
-            XML;
+<url>
+    <loc>{$loc}</loc>
+    <lastmod>{$lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+        <image:loc>{$image}</image:loc>
+        <image:title>{$title}</image:title>
+    </image:image>
+</url>
+XML;
     }
 
     public static function sitemapIndexXml($entries)
     {
         return '<?xml version="1.0" encoding="UTF-8"?>
-            <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-            ' . implode("\n", $entries) . '
-            </sitemapindex>';
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+' . implode("\n", $entries) . '
+</sitemapindex>';
     }
 
     public static function urlsetXml($entries)
     {
         return '<?xml version="1.0" encoding="UTF-8"?>
-            <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-                    xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-            ' . implode("\n", $entries) . '
-            </urlset>';
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+' . implode("\n", $entries) . '
+</urlset>';
+    }
+
+    /**
+     * Escape chuỗi cho XML (chuẩn ENT_XML1)
+     */
+    private static function xmlEscape($string)
+    {
+        if ($string === null || $string === '') return '';
+        return htmlspecialchars($string, ENT_XML1 | ENT_QUOTES, 'UTF-8', false);
     }
 
     public static function fixPermissions($path = null)
     {
-        // Nếu không truyền $path, mặc định dùng app/sitemaps
         $path = $path ?: app_path('sitemaps');
 
         if (!is_dir($path)) return;
 
-        // Duyệt tất cả thư mục con và file
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
@@ -200,14 +209,12 @@ class SitemapController extends Controller
 
         foreach ($iterator as $item) {
             if ($item->isDir()) {
-                @chmod($item->getPathname(), 0777); // quyền thư mục
+                @chmod($item->getPathname(), 0777);
             } else {
-                @chmod($item->getPathname(), 0666); // quyền file
+                @chmod($item->getPathname(), 0666);
             }
         }
 
-        // Đặt quyền cho thư mục gốc
         @chmod($path, 0777);
     }
-
 }
