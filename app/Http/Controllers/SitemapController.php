@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Cache;
 
 class SitemapController extends Controller
 {
-    const MAX_ITEMS = 10000;
+    const MAX_ITEMS = 1000;
 
     public static function serve($filePath)
     {
