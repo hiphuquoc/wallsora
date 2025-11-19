@@ -70,8 +70,5 @@ class Kernel extends HttpKernel
         'role' => \App\Http\Middleware\RoleMiddleware::class,
 
         'checkRedirect' => \App\Http\Middleware\CheckRedirect::class,
-        /* kiểm tra xem phải admin */
-        'check.admin.subdomain' => \App\Http\Middleware\CheckAdminSubdomain::class,
-        'check.domain' => \App\Http\Middleware\CheckDomain::class,
     ];
 }
