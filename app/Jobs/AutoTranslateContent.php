@@ -211,7 +211,7 @@ class AutoTranslateContent implements ShouldQueue {
     private static function processString($input) {
         // Lấy giá trị từ biến môi trường và thoát các ký tự đặc biệt cho biểu thức chính quy
         $appUrl = preg_quote(env('APP_URL'), '/').'\/';
-        // Xóa bỏ "https://wallsora.com/" hoặc "../../" ở đầu chuỗi
+        // Xóa bỏ "https://wallsora.net/" hoặc "../../" ở đầu chuỗi
         $pattern = '/^(' . $appUrl . '|..\/..\/)/';
         $processedString = preg_replace($pattern, '', $input);
         // Xóa bỏ phần hashtag và biến trong URL

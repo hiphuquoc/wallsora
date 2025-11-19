@@ -1,12 +1,12 @@
 <?php
 
 return [
-    'author_name'           => 'wallsora.com',
-    'founder_name'          => 'wallsora.com',
+    'author_name'           => 'wallsora.net',
+    'founder_name'          => 'wallsora.net',
     'founder_address'       => '55 Cô Giang, Rạch Giá',
     'founding'              => '2023-03-30',
-    'company_name'          => 'wallsora.com',
-    'email'                 => 'anhnendienthoai@gmail.com',
+    'company_name'          => 'wallsora.net',
+    'email'                 => 'wallsora.com@gmail.com',
     'company_description'   => 'Giới thiệu dịch vụ',
     'contacts'          =>  [
                                 [
@@ -37,7 +37,7 @@ return [
     ],
     'google_cloud_storage' => [
         'default_domain'    => 'https://'.env('GOOGLE_CLOUD_STORAGE_BUCKET').'.storage.googleapis.com/',
-        'cdn_domain'        => 'https://cdn.wallsora.com/', /* đường dẫn CDN thiết lập trên google cloud CDN */
+        'cdn_domain'        => 'https://cdn.wallsora.net/', /* đường dẫn CDN thiết lập trên google cloud CDN */
         // 'wallpapers'        => 'test/',
         'wallpapers'        => 'wallpapers/',
         'sources'           => 'sources/',

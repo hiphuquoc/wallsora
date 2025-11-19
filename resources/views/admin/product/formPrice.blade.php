@@ -67,7 +67,7 @@
                             {{-- @for($i=0;$i<10;++$i)
                                 <div id="js_deleteWallpaperAndSource_{{ $i }}" class="searchViewBefore_selectbox_item" style="width:33.33%;padding:0.75rem 0.5rem;">
                                     <div class="searchViewBefore_selectbox_item_imageFull" data-wallpaper-id="4005" data-product-price-id="1449" onclick="chooseWallpaperForProductPrice(this);">
-                                        <img src="https://cdn.wallsora.com/wallpapers/hinh-nen-dien-thoai-chuot-con-don-giang-sinh-4k-tuyet-dep-031QXBSCHP-small.webp" />
+                                        <img src="https://cdn.wallsora.net/wallpapers/hinh-nen-dien-thoai-chuot-con-don-giang-sinh-4k-tuyet-dep-031QXBSCHP-small.webp" />
                                         <div class="searchViewBefore_selectbox_item_imageFull_message">
                                             <div><i class="fa-solid fa-check"></i> Đã chọn</div>
                                         </div>
