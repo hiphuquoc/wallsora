@@ -37,7 +37,7 @@ return [
     ],
     'google_cloud_storage' => [
         'default_domain'    => 'https://'.env('GOOGLE_CLOUD_STORAGE_BUCKET').'.storage.googleapis.com/',
-        'cdn_domain'        => 'https://cdn.wallsora.net/', /* đường dẫn CDN thiết lập trên google cloud CDN */
+        'cdn_domain'        => 'https://cdn.wallsora.com/', /* đường dẫn CDN thiết lập trên google cloud CDN */
         // 'wallpapers'        => 'test/',
         'wallpapers'        => 'wallpapers/',
         'sources'           => 'sources/',
