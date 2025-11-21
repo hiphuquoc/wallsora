@@ -24,10 +24,10 @@ class Category extends BaseCategory {
         return [
             'id'                => $this->id,
             'title'         => $this->seo->title ?? '',
-            'seos'              => $this->seos->pluck('infoSeo.title')->filter()->values()->toArray(),
-            'tags'              => $this->tags->pluck('infoTag.seos.infoSeo.title')->filter()->values()->toArray(),
-            'products'          => $this->products->pluck('infoProduct.seos.infoSeo.title')->filter()->values()->toArray(),
-            'freeWallpapers'    => $this->products->pluck('infoFreeWallpaper.seos.infoSeo.title')->filter()->values()->toArray(),
+            'seos'              => $this->seos->pluck('infoSeo.title')->filter()->values()->toArray() ?? [],
+            'tags'              => $this->tags->pluck('infoTag.seos.infoSeo.title')->filter()->values()->toArray() ?? [],
+            'products'          => $this->products->pluck('infoProduct.seos.infoSeo.title')->filter()->values()->toArray() ?? [],
+            'freeWallpapers'    => $this->products->pluck('infoFreeWallpaper.seos.infoSeo.title')->filter()->values()->toArray() ?? [],
         ];
     }
 

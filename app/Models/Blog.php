@@ -26,8 +26,8 @@ class Blog extends Model {
         return [
             'id'                => $this->id,
             'title'             => $this->seo->title ?? '',
-            'seos'              => $this->seos->pluck('infoSeo.title')->filter()->values()->toArray(),
-            'categories'        => $this->categories->pluck('infoCategory.seos.infoSeo.title')->filter()->values()->toArray(),
+            'seos'              => $this->seos->pluck('infoSeo.title')->filter()->values()->toArray() ?? [],
+            'categories'        => $this->categories->pluck('infoCategory.seos.infoSeo.title')->filter()->values()->toArray() ?? [],
         ];
     }
 
